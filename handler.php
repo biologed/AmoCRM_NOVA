@@ -1,146 +1,413 @@
 <?php
-function get_all_contact($token, $page) {
-	$subdomain = 'supergird2012'; //Поддомен нужного аккаунта
-	$link = 'https://' . $subdomain . '.amocrm.ru/api/v4/contacts?page='.$page.'&limit=250'; //Формируем URL для запроса
 
-	/** Формируем заголовки */
+/**
+* Запрос в API
+* @param string $token токен API
+* @param string $operation имя операции которую выполняем
+* @param int $id универсальный номер контакта присвоенный БД
+* @param int $id_lead универсальный номер сделки присвоенный БД
+* @param int $page страница в БД API используется, если в БД хранится более 250 значений (ограничение на выдачу API)
+* @param array $set массив хранящий подготовленные параметры для передачи в API (создание\обновление контакта, связи, сделки)
+* @param string $name имя контакта
+* @access private
+* @return array
+*/
+
+function &connect(string $operation, string $token, int $id, int $id_lead, int $page, array $set, string $name) {
 	$headers = [
 		'Authorization: Bearer ' . $token
 	];
-	/**
-	 * Нам необходимо инициировать запрос к серверу.
-	 * Воспользуемся библиотекой cURL (поставляется в составе PHP).
-	 * Вы также можете использовать и кроссплатформенную программу cURL, если вы не программируете на PHP.
-	 */
-	$curl = curl_init(); //Сохраняем дескриптор сеанса cURL
-	/** Устанавливаем необходимые опции для сеанса cURL  */
-	curl_setopt($curl,CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($curl,CURLOPT_USERAGENT,'amoCRM-oAuth-client/1.0');
-	curl_setopt($curl,CURLOPT_URL, $link);
-	curl_setopt($curl,CURLOPT_HTTPHEADER, $headers);
-	curl_setopt($curl,CURLOPT_HEADER, false);
-	curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, 1);
-	curl_setopt($curl,CURLOPT_SSL_VERIFYHOST, 2);
-	$out = curl_exec($curl); //Инициируем запрос к API и сохраняем ответ в переменную
-	$code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+	$curl = curl_init();
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($curl, CURLOPT_USERAGENT,'amoCRM-oAuth-client/1.0');
+
+	if($operation == 'get_all_contact') {  //запрос на получение всех контактов
+		$link = 'https://supergird2012.amocrm.ru/api/v4/contacts?page='.$page.'&limit=250';
+	} elseif($operation == 'update_contact') { //запрос на обновление контакта
+		$link = 'https://supergird2012.amocrm.ru/api/v4/contacts/'.$id;
+		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'PATCH');
+		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
+	} elseif($operation == 'create_contact') { //запрос на создание контакта
+		$link = 'https://supergird2012.amocrm.ru/api/v4/contacts';
+		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'POST');
+		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
+	} elseif($operation == 'create_lead') { //запрос на создание сделки
+		$link = 'https://supergird2012.amocrm.ru/api/v4/leads';
+		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'POST');
+		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
+	} elseif($operation == 'create_link') { //запрос на создание связи
+		$link = 'https://supergird2012.amocrm.ru/api/v4/leads/'.$id_lead.'/link';
+		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'POST');
+		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
+	} elseif($operation == 'get_contact') { //запрос на поиск контакта по имени
+		$link = 'https://supergird2012.amocrm.ru/api/v4/contacts?filter[name]='.$name.'';
+	}
+
+	curl_setopt($curl, CURLOPT_URL, $link);
+	curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+	curl_setopt($curl, CURLOPT_HEADER, false);
+	curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 1);
+	curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
+	$out = curl_exec($curl);
+	$code = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
 	curl_close($curl);
-	/** Теперь мы можем обработать ответ, полученный от сервера. Это пример. Вы можете обработать данные своим способом. */
-	$code = (int)$code;
-	$errors = [
-		400 => 'Bad request',
-		401 => 'Unauthorized',
-		403 => 'Forbidden',
-		404 => 'Not found',
-		500 => 'Internal server error',
-		502 => 'Bad gateway',
-		503 => 'Service unavailable',
-	];
 
-	try
-	{
-		/** Если код ответа не успешный - возвращаем сообщение об ошибке  */
-		if ($code < 200 || $code > 204) {
-			throw new Exception(isset($errors[$code]) ? $errors[$code] : 'Undefined error', $code);
-		}
-	}
-	catch(\Exception $e)
-	{
-		die('Ошибка: ' . $e->getMessage() . PHP_EOL . 'Код ошибки: ' . $e->getCode());
+	if($out && ($code == 200 || $code == 204)) {
+		$response = array(
+			'status' => 'success',
+			'data' => json_decode($out, true)
+		);
+		
+	} elseif ($code < 200 || $code > 204) {
+		$response = array(
+			'status' => 'error',
+			'data' => 'Ошибка №'.$code
+		);
 	}
 
-	$response = json_decode($out, true);
-
-	if($response) {
-		get_all_contact_resp($response, $page);
-	}
+	return $response;
 }
 
-function get_all_contact_resp($response, $page) {
+/**
+* Ищем контакт по его имени в БД
+* для создания связи между ними
+* @param string $token токен API
+* @param int $name имя контакта
+* @access private
+* @return array
+*/
+function get_contact(string $token, string $name) {
+	// проверяем чтобы поле с именем было заполнено, а поле почты и телефона пустые
+	if(!empty($_GET['name'])) {
+		$response = &connect('get_contact', $token, 0, 0, 0, [], $name); //инициируем запрос в API
+		if($response['status'] == 'success') {
+			$count_str = count($response['data']['_embedded']['contacts']); //количество контактов в ответе
+			$data = array();
+			for($i = 0; $i < $count_str; $i++) {
+				$id_contact = $response['data']['_embedded']['contacts'][$i]['id'];
+				$name_contact = $response['data']['_embedded']['contacts'][$i]['name'];
 
-	// 
-	// Нужна оптимизация, чтобы каждый раз не опрашивать всю БД и не создавать файл со всеми имеющимися контактами (при N > 1000 возможны большие задержки).
-	// ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-	// Функция исследует файл base_contracts в котором хранит все контакты AmoCRM и БД AmoCRM, из-за API невозможно выполнить фильтр на стороне Амо по их системным полям Телефона и Почты.
-	// независимо от версии API, исследовались разные варианты GET-запросов к AmoCRM с попытками отфильтровать по полям.
-	// Далее подсчитываем количество строк, берем в учет, что в ответе от AmoCRM может быть только 250 контактов, поэтому опрашиваем все страницы БД.
-	// Затем собираем нужную нам информацию в файл.
-	// ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-	// Далее запускаем поиск по телефону или почте уже работая с файлом контактов на сервере.
-	// 
-
-	$last_page = false;
-	$filename = "base_contracts.json";
-	$count_str = count($response['_embedded']['contacts']); //количество контактов в ответе
-	$count_file = count(file($filename)) - 4; //количество контактов в файле
-	if($count_str < 250) {
-		$last_page = true;
-	}
-	if($page == 1 && file_exists($filename)) {
-		$new_filename = str_replace('.json', '', $filename).'_backup.json';
-		copy($filename, $new_filename);
-		unlink($filename);
-	}
-	$fp = fopen($filename,'a');
-	if($page == 1) {
-		fwrite($fp, "{\r\n	\"contacts\": [\r\n");
-	}
-	fclose($fp);
-	for($i = 0; $i < $count_str; $i++) {
-		$id_contact = $response['_embedded']['contacts'][$i]['id'];
-		$name_contact = $response['_embedded']['contacts'][$i]['name'];
-
-		//ищем телефон и почту в полях
-		if(!empty($response['_embedded']['contacts'][$i]['custom_fields_values'])) {
-			for($t = 0; $t < count($response['_embedded']['contacts'][$i]['custom_fields_values']); $t++) {
-				if($response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Телефон") {
-					if(!empty($response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
-						$phone_contact = $response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
-					} else {
-						$phone_contact = null;
+				//ищем телефон и почту в полях
+				if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'])) {
+					for($t = 0; $t < count($response['data']['_embedded']['contacts'][$i]['custom_fields_values']); $t++) {
+						if($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Телефон") {
+							if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
+								$phone_contact = $response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
+							} else {
+								$phone_contact = null;
+							}
+						} else if ($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Email") {
+							if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
+								$email_contact = $response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
+							} else {
+								$email_contact = null;
+							}
+						}
 					}
-				} else if ($response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Email") {
-					if(!empty($response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
-						$email_contact = $response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
-					} else {
-						$email_contact = null;
-					}
+				} else {
+					$phone_contact = null;
+					$email_contact = null;
 				}
-			}
-		} else {
-			$phone_contact = null;
-			$email_contact = null;
-		}
 
-		$fp = fopen($filename,'a');
-		$result = json_encode(array(
-			'id_contact' => $id_contact,
-			'name_contact' => $name_contact,
-			'phone_contact' => $phone_contact,
-			'email_contact' => $email_contact,
-			), JSON_UNESCAPED_UNICODE, JSON_FORCE_OBJECT);
-		if($i == $count_str - 1 && $last_page) {
-			fwrite($fp, "		".$result."\r\n"); //закрываемся
+				$data[] = array(
+					'id_contact' => $id_contact,
+					'name_contact' => $name_contact,
+					'phone_contact' => $phone_contact,
+					'email_contact' => $email_contact,
+					);
+			}
+
+			$result = array(
+				'status' => 'success',
+				'data' => json_encode($data),
+			);
+		} elseif ($response['status'] == 'error') {
+			$result = array(
+				'status' => 'error',
+				'data' => $response['data'],
+			);
 		} else {
-			fwrite($fp, "		".$result.",\r\n");
-		}
-	}
-	if($count_str == 250) {
-		$page = $page + 1;
-		$content = json_decode(file_get_contents('token.json'), true);
-		if(empty($_GET['name'])) {
-			get_all_contact($content['access_token'], $page, 0);
+			if(empty($_GET['phone']) && empty($_GET['email'])) {
+				$result = array(
+					'status' => 'error',
+					'data' => 'Такого контакта нет, для поиска по другим параметрам оставьте поле пустым',
+				);
+			} else {
+				$result = array(
+					'status' => 'fail',
+					'data' => 'Такого контакта нет, хотите создать контакт?',
+				);
+			}
 		}
 	} else {
-		fwrite($fp, "	]\r\n}");
-		fclose($fp);
+		$result = array(
+			'status' => 'error',
+			'data' => 'Поле с именем контакта должно быть заполнено',
+		);
+	}
+	
+	echo json_encode($result);
+}
 
-		search_contact_in_json($_GET['email'], $_GET['phone']);
+/**
+* Создаем контакт в БД
+* @param string $token токен API
+* @param string $name имя контакта
+* @param string $phone телефон контакта
+* @param string $email почта контакта
+* @access private
+* @return array if error
+*/
+function create_contact(string $token, string $name, string $phone, string $email) {
+	// проверяем чтобы все поля были заполнены
+	if(!empty($_GET['name']) && !empty($_GET['email']) && !empty($_GET['phone'])) {
+		$set=array(
+			array(
+				"name"=>$name,
+				"first_name"=>$name,
+				"last_name"=>"",
+				"updated_at"=>time(),
+				"custom_fields_values"=>array(
+					array(
+						"field_id"=>633427,
+						"values"=>array(
+							array(
+								"value"=>$email,
+								"enum_code"=>"WORK"
+							)
+						)
+					),
+					array(
+						"field_id"=>633425,
+						"values"=>array(
+							array(
+								"value"=>$phone,
+								"enum_code"=>"WORK"
+							)
+						)
+					)
+				),
+				"request_id"=>"create"
+			)
+		);
+
+		$response = &connect('create_contact', $token, 0, 0, 0, $set, ''); //инициируем запрос в API
+		if($response['status'] == 'success') {
+			$id_contact = $response['data']["_embedded"]["contacts"][0]['id'];
+			create_lead($token, $name, $id_contact); //создаем сделку
+		} else if ($response['status'] == 'error') {
+			$result = array(
+				'status' => 'error',
+				'data' => $response['data']
+			);
+			echo json_encode($result);
+		} else {
+			$result = array(
+				'status' => 'error',
+				'data' => 'Ошибка! Контакт не был создан'
+			);
+			echo json_encode($result);
+		}
+	} else {
+		$result = array(
+			'status' => 'fail',
+			'data' => 'Все поля должны быть заполнены',
+		);
+		echo json_encode($result);
 	}
 }
 
-function search_contact_in_json($email, $phone) {
+/**
+* Создаем сделку и передаем данные об ID сделки и контакта в функцию create_link
+* для создания связи между ними
+* @param string $token токен API
+* @param string $name имя сделки
+* @param int $id_contact универсальный номер контакта
+* @access private
+* @return array if error
+*/
+function create_lead(string $token, string $name_lead, int $id_contact) {
+	$set=array(
+		array(
+			"name"=>$name_lead,
+			"price"=>0,
+			"request_id"=>"create_lead"
+		)
+	);
+	$response = &connect('create_lead', $token, 0, 0, 0, $set, ''); //инициируем запрос в API
+
+	if($response['status'] == 'success') {
+		$id_lead = $response['data']["_embedded"]["leads"][0]['id'];
+		create_link($token, $id_lead, $id_contact); //создаем связь между сделкой и контактом
+	} else if ($response['status'] == 'error') {
+		$result = array(
+			'status' => 'error',
+			'data' => $response['data']
+		);
+		echo json_encode($result);
+	} else {
+		$result = array(
+			'status' => 'error',
+			'data' => 'Ошибка! Сделка не была создана'
+		);
+		echo json_encode($result);
+	}
+}
+
+/**
+* Создаем связь между сделкой и контактом
+* для создания связи между ними
+* @param string $token токен API
+* @param int $id_lead универсальный номер сделки
+* @param int $id_contact универсальный номер контакта
+* @access private
+* @return array
+*/
+function create_link(string $token, int $id_lead, int $id_contact) {
+	$set=array(
+		array(
+			"to_entity_id"=>$id_contact,
+			"to_entity_type"=>"contacts",
+			"metadata"=>array(
+				"is_main"=>true,
+			)
+		)
+	);
+
+	$response = &connect('create_link', $token, 0, $id_lead, 0, $set, ''); //инициируем запрос в API
+	if($response['status'] == 'success') {
+		$result = array(
+			'status' => 'success',
+			'data' => 'Контакт c ID: '.$id_contact.' сделка c ID: '.$id_lead.' и связь между ними успешно созданы'
+		);
+	} else if ($response['status'] == 'error') {
+		$result = array(
+			'status' => 'error',
+			'data' => $response['data']
+		);
+	} else {
+		$result = array(
+			'status' => 'error',
+			'data' => 'Ошибка! Сделка не была создана'
+		);
+	}
+
+	echo json_encode($result);
+}
+
+/**
+* функция работы с файлом base_contracts.json
+* Функция исследует файл base_contracts в котором хранит все контакты AmoCRM и БД AmoCRM, 
+* из-за API невозможно выполнить фильтр на стороне Амо по их системным полям Телефона и Почты.
+* независимо от версии API, исследовались разные варианты GET-запросов к AmoCRM с попытками отфильтровать по полям, в т.ч. на 3 и 4 версиях.
+* Далее подсчитываем количество строк, берем в учет, что в ответе от AmoCRM может быть только 250 контактов, поэтому опрашиваем все страницы БД.
+* Затем собираем нужную нам информацию в файл.
+* Далее запускаем поиск по телефону или почте уже работая с файлом контактов на сервере.
+* @param string $token токен API
+* @param int $page страница в БД API используется, если в БД хранится более 250 значений (ограничение на выдачу API)
+* @access private
+* @return array if error
+*/
+function get_all_contact(string $token, int $page) {
+	$response = &connect('get_all_contact', $token, 0, 0, $page, [], ''); //инициируем запрос в API
+
+	if($response['status'] == 'success') {
+		$last_page = false;
+		$count_str = count($response['data']['_embedded']['contacts']); //количество контактов в ответе
+		// $count_file = count(file($filename)); //количество контактов в файле
+		if(!is_dir("sec")) {
+			mkdir("sec", 0777, true);
+		}
+
+		$filename = "sec/base_contracts.json";
+		$fp = fopen('sec/.htaccess','w',0777);
+		fwrite($fp, "<Files *>\r\nDeny from All\r\n</Files>");
+		fclose($fp);
+
+		if(file_exists($filename) && $page == 1) {
+			$new_filename = str_replace('.json', '', $filename).'_backup.json';
+			copy($filename, $new_filename);
+			unlink($filename);
+		}	
+
+		if($count_str < 250) {
+			$last_page = true;
+		}
+
+		$fp = fopen($filename,'a',0777);
+		if($page == 1) {
+			fwrite($fp, "{\r\n	\"contacts\": [\r\n");
+		}
+		for($i = 0; $i < $count_str; $i++) {
+			$id_contact = $response['data']['_embedded']['contacts'][$i]['id'];
+			$name_contact = $response['data']['_embedded']['contacts'][$i]['name'];
+
+			//ищем телефон и почту в полях
+			if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'])) {
+				for($t = 0; $t < count($response['data']['_embedded']['contacts'][$i]['custom_fields_values']); $t++) {
+					if($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Телефон") {
+						if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
+							$phone_contact = $response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
+						} else {
+							$phone_contact = null;
+						}
+					} else if ($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Email") {
+						if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
+							$email_contact = $response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
+						} else {
+							$email_contact = null;
+						}
+					}
+				}
+			} else {
+				$phone_contact = null;
+				$email_contact = null;
+			}
+			$set = json_encode(array(
+				'id_contact' => $id_contact,
+				'name_contact' => $name_contact,
+				'phone_contact' => $phone_contact,
+				'email_contact' => $email_contact,
+				), JSON_UNESCAPED_UNICODE, JSON_FORCE_OBJECT);
+			if($i == $count_str - 1 && $last_page) {
+				fwrite($fp, "		".$set."\r\n"); //закрываемся
+			} else {
+				fwrite($fp, "		".$set.",\r\n");
+			}
+		}
+		if($count_str == 250) {
+			$page++;
+			get_all_contact($token, $page);
+		} else {
+			fwrite($fp, "	]\r\n}");
+			fclose($fp);
+
+			search_contact_in_json($filename, $_GET['email'], $_GET['phone']);
+		}
+	} else if ($response['status'] == 'error') {
+		$result = array(
+			'status' => 'error',
+			'data' => $response['data']
+		);
+	} else {
+		$result = array(
+			'status' => 'error',
+			'data' => 'Ошибка! Невозможно получить список контактов'
+		);
+	}
+}
+
+/**
+* Ищем контакт в файле полученным из БД
+* @param string $filename имя ранее созданого файла
+* @param string $email почта контакта
+* @param string $phone телефон контакта
+* @access private
+* @return array
+*/
+function search_contact_in_json(string $filename, string $email, string $phone) { //ищем контакты в файле
 	$content = array();
-	$filename = "base_contracts.json";
 	$json = json_decode(file_get_contents($filename), true);
 
 	for($i = 0; $i < count($json['contacts']); $i++) {
@@ -170,40 +437,43 @@ function search_contact_in_json($email, $phone) {
 				'email_contact' => $email_contact,
 				);
 		}
-		echo json_encode($data);
+		$result = array(
+			'status' => 'success',
+			'data' => json_encode($data)
+		);
 	} else {
-		echo json_encode('Такого контакта нет, создать его?');
+		$result = array(
+			'status' => 'fail',
+			'data' => 'Такого контакта нет, хотите создать контакт?'
+		);
 	}
+	echo json_encode($result);
 }
 
-function update_contact($token, $id, $name, $phone, $email) {
-	//если все данные есть
-	//отправил запрос в ТП, неизвесно почему контакты не обновляются, запрос PATCH, при POST контакты создаются как положено
-
+/**
+* Обновляем данные контакта в БД
+* @param string $token токен API
+* @param int $id универсальный номер контакта присвоенный БД
+* @param string $name имя контакта
+* @param string $phone телефон контакта
+* @param string $email почта контакта
+* @access private
+* @return array
+*/
+function update_contact(string $token, int $id, string $name, string $phone, string $email) {
 	if(!empty($_GET['name']) && !empty($_GET['email']) && !empty($_GET['phone'])) {
 		$set=array(
 			array(
 				"id"=>$id,
-				"name"=>$name,
-				"first_name"=>$name,
+				"first_name"=>$name."1",
 				"last_name"=>"",
-				"updated_at"=>time(),
 				"custom_fields_values"=>array(
 					array(
-						"field_id"=>633427,
+						"field_id"=>669985,
+						"field_name"=>"pfafasd",
 						"values"=>array(
 							array(
-								"value"=>"111125@gmail.com",
-								"enum_code"=>"WORK"
-							)
-						)
-					),
-					array(
-						"field_id"=>633425,
-						"values"=>array(
-							array(
-								"value"=>"242344234",
-								"enum_code"=>"WORK"
+								"value"=>"11111111"
 							)
 						)
 					)
@@ -211,405 +481,42 @@ function update_contact($token, $id, $name, $phone, $email) {
 				"request_id"=>"update"
 			)
 		);
-
-		var_dump(json_encode($set));
-
-		$subdomain = 'supergird2012'; //Поддомен нужного аккаунта
-		$link = 'https://' . $subdomain . '.amocrm.ru/api/v4/contacts/'.$id; //Формируем URL для запроса
-
-		/** Формируем заголовки */
-		$headers = [
-			'Authorization: Bearer ' . $token
-		];
-		/**
-		 * Нам необходимо инициировать запрос к серверу.
-		 * Воспользуемся библиотекой cURL (поставляется в составе PHP).
-		 * Вы также можете использовать и кроссплатформенную программу cURL, если вы не программируете на PHP.
-		 */
-		$curl = curl_init(); //Сохраняем дескриптор сеанса cURL
-		/** Устанавливаем необходимые опции для сеанса cURL  */
-		curl_setopt($curl,CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl,CURLOPT_USERAGENT,'amoCRM-oAuth-client/1.0');
-		curl_setopt($curl,CURLOPT_URL, $link);
-		curl_setopt($curl,CURLOPT_SSLVERSION, 6);
-		curl_setopt($curl,CURLOPT_CUSTOMREQUEST,'PATCH');
-		curl_setopt($curl,CURLOPT_POSTFIELDS, json_encode($set));
-		curl_setopt($curl,CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($curl,CURLOPT_HEADER, false);
-		curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, 1);
-		curl_setopt($curl,CURLOPT_SSL_VERIFYHOST, 2);
-		$out = curl_exec($curl); //Инициируем запрос к API и сохраняем ответ в переменную
-		$code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-		curl_close($curl);
-		/** Теперь мы можем обработать ответ, полученный от сервера. Это пример. Вы можете обработать данные своим способом. */
-		$code = (int)$code;
-		$errors = [
-			400 => 'Bad request',
-			401 => 'Unauthorized',
-			403 => 'Forbidden',
-			404 => 'Not found',
-			500 => 'Internal server error',
-			502 => 'Bad gateway',
-			503 => 'Service unavailable',
-		];
-
-		try
-		{
-			/** Если код ответа не успешный - возвращаем сообщение об ошибке  */
-			if ($code < 200 || $code > 204) {
-				throw new Exception(isset($errors[$code]) ? $errors[$code] : 'Undefined error', $code);
-			}
-		}
-		catch(\Exception $e)
-		{
-			die('Ошибка: ' . $e->getMessage() . PHP_EOL . 'Код ошибки: ' . $e->getCode());
-		}
-
-		$response = json_decode($out, true);
-	}
-}
-
-function create_contact($token, $name, $phone, $email) {
-		//если все данные есть
-		//хорошо бы заносить имя и фамилию отдельно...пока так, вернемся к этому позже
-		if(!empty($_GET['name']) && !empty($_GET['email']) && !empty($_GET['phone'])) {
-			$set=array(
-				array(
-					"name"=>$name,
-					"first_name"=>$name,
-					"last_name"=>"",
-					"updated_at"=>time(),
-					"custom_fields_values"=>array(
-						array(
-							"field_id"=>633427,
-							"values"=>array(
-								array(
-									"value"=>$email,
-									"enum_code"=>"WORK"
-								)
-							)
-						),
-						array(
-							"field_id"=>633425,
-							"values"=>array(
-								array(
-									"value"=>$phone,
-									"enum_code"=>"WORK"
-								)
-							)
-						)
-					),
-					"request_id"=>"create"
-				)
+		$response = &connect('update_contact', $token, $id, 0, 0, $set, $name); //инициируем запрос в API
+		if($response['status'] == 'success') {
+			$result = array(
+				'status' => 'success',
+				'data' => $response
 			);
-	
-			var_dump(json_encode($set));
-	
-			$subdomain = 'supergird2012'; //Поддомен нужного аккаунта
-			$link = 'https://' . $subdomain . '.amocrm.ru/api/v4/contacts'; //Формируем URL для запроса
-	
-			/** Формируем заголовки */
-			$headers = [
-				'Authorization: Bearer ' . $token
-			];
-			/**
-			 * Нам необходимо инициировать запрос к серверу.
-			 * Воспользуемся библиотекой cURL (поставляется в составе PHP).
-			 * Вы также можете использовать и кроссплатформенную программу cURL, если вы не программируете на PHP.
-			 */
-			$curl = curl_init(); //Сохраняем дескриптор сеанса cURL
-			/** Устанавливаем необходимые опции для сеанса cURL  */
-			curl_setopt($curl,CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($curl,CURLOPT_USERAGENT,'amoCRM-oAuth-client/1.0');
-			curl_setopt($curl,CURLOPT_URL, $link);
-			curl_setopt($curl,CURLOPT_SSLVERSION, 6);
-			curl_setopt($curl,CURLOPT_CUSTOMREQUEST,'POST');
-			curl_setopt($curl,CURLOPT_POSTFIELDS, json_encode($set));
-			curl_setopt($curl,CURLOPT_HTTPHEADER, $headers);
-			curl_setopt($curl,CURLOPT_HEADER, false);
-			curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, 1);
-			curl_setopt($curl,CURLOPT_SSL_VERIFYHOST, 2);
-			$out = curl_exec($curl); //Инициируем запрос к API и сохраняем ответ в переменную
-			$code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-			curl_close($curl);
-			/** Теперь мы можем обработать ответ, полученный от сервера. Это пример. Вы можете обработать данные своим способом. */
-			$code = (int)$code;
-			$errors = [
-				400 => 'Bad request',
-				401 => 'Unauthorized',
-				403 => 'Forbidden',
-				404 => 'Not found',
-				500 => 'Internal server error',
-				502 => 'Bad gateway',
-				503 => 'Service unavailable',
-			];
-	
-			try
-			{
-				/** Если код ответа не успешный - возвращаем сообщение об ошибке  */
-				if ($code < 200 || $code > 204) {
-					throw new Exception(isset($errors[$code]) ? $errors[$code] : 'Undefined error', $code);
-				}
-			}
-			catch(\Exception $e)
-			{
-				die('Ошибка: ' . $e->getMessage() . PHP_EOL . 'Код ошибки: ' . $e->getCode());
-			}
-			
-			$response = json_decode($out, true);
-			$id_contact = $response["_embedded"]["contacts"][0]['id'];
-			create_lead($token, $name, $id_contact);
-		}
-
-}
-
-function create_lead($token, $name, $id_contact) {
-	//если все данные есть
-	if(!empty($_GET['name']) && !empty($_GET['email']) && !empty($_GET['phone'])) {
-		$set=array(
-			array(
-				"name"=>$name,
-				"price"=>0,
-				"request_id"=>"create_lead"
-			)
-		);
-
-		var_dump(json_encode($set));
-
-		$subdomain = 'supergird2012'; //Поддомен нужного аккаунта
-		$link = 'https://' . $subdomain . '.amocrm.ru/api/v4/leads'; //Формируем URL для запроса
-
-		/** Формируем заголовки */
-		$headers = [
-			'Authorization: Bearer ' . $token
-		];
-		/**
-		 * Нам необходимо инициировать запрос к серверу.
-		 * Воспользуемся библиотекой cURL (поставляется в составе PHP).
-		 * Вы также можете использовать и кроссплатформенную программу cURL, если вы не программируете на PHP.
-		 */
-		$curl = curl_init(); //Сохраняем дескриптор сеанса cURL
-		/** Устанавливаем необходимые опции для сеанса cURL  */
-		curl_setopt($curl,CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl,CURLOPT_USERAGENT,'amoCRM-oAuth-client/1.0');
-		curl_setopt($curl,CURLOPT_URL, $link);
-		curl_setopt($curl,CURLOPT_SSLVERSION, 6);
-		curl_setopt($curl,CURLOPT_CUSTOMREQUEST,'POST');
-		curl_setopt($curl,CURLOPT_POSTFIELDS, json_encode($set));
-		curl_setopt($curl,CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($curl,CURLOPT_HEADER, false);
-		curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, 1);
-		curl_setopt($curl,CURLOPT_SSL_VERIFYHOST, 2);
-		$out = curl_exec($curl); //Инициируем запрос к API и сохраняем ответ в переменную
-		$code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-		curl_close($curl);
-		/** Теперь мы можем обработать ответ, полученный от сервера. Это пример. Вы можете обработать данные своим способом. */
-		$code = (int)$code;
-		$errors = [
-			400 => 'Bad request',
-			401 => 'Unauthorized',
-			403 => 'Forbidden',
-			404 => 'Not found',
-			500 => 'Internal server error',
-			502 => 'Bad gateway',
-			503 => 'Service unavailable',
-		];
-
-		try
-		{
-			/** Если код ответа не успешный - возвращаем сообщение об ошибке  */
-			if ($code < 200 || $code > 204) {
-				throw new Exception(isset($errors[$code]) ? $errors[$code] : 'Undefined error', $code);
-			}
-		}
-		catch(\Exception $e)
-		{
-			die('Ошибка: ' . $e->getMessage() . PHP_EOL . 'Код ошибки: ' . $e->getCode());
-		}
-		
-		$response = json_decode($out, true);
-		$id_lead = $response["_embedded"]["leads"][0]['id'];
-		var_dump($id_lead);
-		var_dump($id_contact);
-		create_link($token, $id_lead, $name, $id_contact);
-	}
-}
-
-function create_link($token, $id_lead, $name, $id_contact) {
-	//если все данные есть
-	if(!empty($_GET['name']) && !empty($_GET['email']) && !empty($_GET['phone'])) {
-		$set=array(
-			array(
-				"to_entity_id"=>$id_contact,
-				"to_entity_type"=>"contacts",
-				"metadata"=>array(
-					"is_main"=>true,
-				)
-			)
-		);
-
-		var_dump(json_encode($set));
-
-		$subdomain = 'supergird2012'; //Поддомен нужного аккаунта
-		$link = 'https://' . $subdomain . '.amocrm.ru/api/v4/leads/'.$id_lead.'/link'; //Формируем URL для запроса
-
-		/** Формируем заголовки */
-		$headers = [
-			'Authorization: Bearer ' . $token
-		];
-		/**
-		 * Нам необходимо инициировать запрос к серверу.
-		 * Воспользуемся библиотекой cURL (поставляется в составе PHP).
-		 * Вы также можете использовать и кроссплатформенную программу cURL, если вы не программируете на PHP.
-		 */
-		$curl = curl_init(); //Сохраняем дескриптор сеанса cURL
-		/** Устанавливаем необходимые опции для сеанса cURL  */
-		curl_setopt($curl,CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl,CURLOPT_USERAGENT,'amoCRM-oAuth-client/1.0');
-		curl_setopt($curl,CURLOPT_URL, $link);
-		curl_setopt($curl,CURLOPT_SSLVERSION, 6);
-		curl_setopt($curl,CURLOPT_CUSTOMREQUEST,'POST');
-		curl_setopt($curl,CURLOPT_POSTFIELDS, json_encode($set));
-		curl_setopt($curl,CURLOPT_HTTPHEADER, $headers);
-		curl_setopt($curl,CURLOPT_HEADER, false);
-		curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, 1);
-		curl_setopt($curl,CURLOPT_SSL_VERIFYHOST, 2);
-		$out = curl_exec($curl); //Инициируем запрос к API и сохраняем ответ в переменную
-		$code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-		curl_close($curl);
-		/** Теперь мы можем обработать ответ, полученный от сервера. Это пример. Вы можете обработать данные своим способом. */
-		$code = (int)$code;
-		$errors = [
-			400 => 'Bad request',
-			401 => 'Unauthorized',
-			403 => 'Forbidden',
-			404 => 'Not found',
-			500 => 'Internal server error',
-			502 => 'Bad gateway',
-			503 => 'Service unavailable',
-		];
-
-		try
-		{
-			/** Если код ответа не успешный - возвращаем сообщение об ошибке  */
-			if ($code < 200 || $code > 204) {
-				throw new Exception(isset($errors[$code]) ? $errors[$code] : 'Undefined error', $code);
-			}
-		}
-		catch(\Exception $e)
-		{
-			die('Ошибка: ' . $e->getMessage() . PHP_EOL . 'Код ошибки: ' . $e->getCode());
-		}
-		
-		$response = json_decode($out, true);
-	}
-}
-
-function get_contact($token, $name = '') {
-	$subdomain = 'supergird2012'; //Поддомен нужного аккаунта
-	if(!empty($name)) {
-		$link = 'https://' . $subdomain . '.amocrm.ru/api/v4/contacts?filter[name]='.$name.''; //Формируем URL для запроса
-	}
-
-	/** Формируем заголовки */
-	$headers = [
-		'Authorization: Bearer ' . $token
-	];
-	/**
-	 * Нам необходимо инициировать запрос к серверу.
-	 * Воспользуемся библиотекой cURL (поставляется в составе PHP).
-	 * Вы также можете использовать и кроссплатформенную программу cURL, если вы не программируете на PHP.
-	 */
-	$curl = curl_init(); //Сохраняем дескриптор сеанса cURL
-	/** Устанавливаем необходимые опции для сеанса cURL  */
-	curl_setopt($curl,CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($curl,CURLOPT_USERAGENT,'amoCRM-oAuth-client/1.0');
-	curl_setopt($curl,CURLOPT_URL, $link);
-	curl_setopt($curl,CURLOPT_HTTPHEADER, $headers);
-	curl_setopt($curl,CURLOPT_HEADER, false);
-	curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, 1);
-	curl_setopt($curl,CURLOPT_SSL_VERIFYHOST, 2);
-	$out = curl_exec($curl); //Инициируем запрос к API и сохраняем ответ в переменную
-	$code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-	curl_close($curl);
-	/** Теперь мы можем обработать ответ, полученный от сервера. Это пример. Вы можете обработать данные своим способом. */
-	$code = (int)$code;
-	$errors = [
-		400 => 'Bad request',
-		401 => 'Unauthorized',
-		403 => 'Forbidden',
-		404 => 'Not found',
-		500 => 'Internal server error',
-		502 => 'Bad gateway',
-		503 => 'Service unavailable',
-	];
-
-	try
-	{
-		/** Если код ответа не успешный - возвращаем сообщение об ошибке  */
-		if ($code < 200 || $code > 204) {
-			throw new Exception(isset($errors[$code]) ? $errors[$code] : 'Undefined error', $code);
-		}
-	}
-	catch(\Exception $e)
-	{
-		die('Ошибка: ' . $e->getMessage() . PHP_EOL . 'Код ошибки: ' . $e->getCode());
-	}
-
-	$response = json_decode($out, true);
-	
-	if($response) {
-		$count_str = count($response['_embedded']['contacts']); //количество контактов в ответе
-		$data = array();
-		for($i = 0; $i < $count_str; $i++) {
-			$id_contact = $response['_embedded']['contacts'][$i]['id'];
-			$name_contact = $response['_embedded']['contacts'][$i]['name'];
-
-			//ищем телефон и почту в полях
-			if(!empty($response['_embedded']['contacts'][$i]['custom_fields_values'])) {
-				for($t = 0; $t < count($response['_embedded']['contacts'][$i]['custom_fields_values']); $t++) {
-					if($response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Телефон") {
-						if(!empty($response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
-							$phone_contact = $response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
-						} else {
-							$phone_contact = null;
-						}
-					} else if ($response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Email") {
-						if(!empty($response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
-							$email_contact = $response['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
-						} else {
-							$email_contact = null;
-						}
-					}
-				}
-			} else {
-				$phone_contact = null;
-				$email_contact = null;
-			}
-
-			$data[] = array(
-				'id_contact' => $id_contact,
-				'name_contact' => $name_contact,
-				'phone_contact' => $phone_contact,
-				'email_contact' => $email_contact,
-				);
-		}
-		echo json_encode($data);
-	} else {
-		if(empty($_GET['phone']) || empty($_GET['email'])) {
-			echo json_encode('Такого контакта нет, для поиска по другим параметрам оставьте поле пустым');
+		} else if ($response['status'] == 'error') {
+			$result = array(
+				'status' => 'error',
+				'data' => $response['data']
+			);
 		} else {
-			echo json_encode('Такого контакта нет, хотите создать контакт?');
+			$result = array(
+				'status' => 'error',
+				'data' => 'Ошибка! Сделка не была создана'
+			);
 		}
+		echo json_encode($result);
 	}
 }
 
+/**
+* Точка входа
+* Обязательно проверяем наличие токена, полученного при авторизации
+* GET update - точка входа в функцию обновления контакта
+* GET create - точка входа в функцию создания контакта
+* GET create и update вызываются Ajax запросом
+* @access public
+*/
 if(file_exists('token.json')) {
 	$content = json_decode(file_get_contents('token.json'), true);
 
 	if(!empty($_GET['update'])) {
 		update_contact($content['access_token'], $_GET['id'], $_GET['name'], $_GET['phone'], $_GET['email']);
-	} else if(!empty($_GET['create'])) {
+	} 
+	else if(!empty($_GET['create'])) {
 		create_contact($content['access_token'], $_GET['name'], $_GET['phone'], $_GET['email']);
 	} else {
 		if(empty($_GET['name'])) {
