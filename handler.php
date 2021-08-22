@@ -322,7 +322,7 @@ function get_all_contact(string $token, int $page) {
 
 		$filename = 'sec/base_contracts.json';
 		$fp = fopen('sec/.htaccess','w',0777);
-		fwrite($fp, '<Files *>\r\nDeny from All\r\n</Files>');
+		fwrite($fp, "<Files *>\r\nDeny from All\r\n</Files>");
 		fclose($fp);
 
 		if(file_exists($filename) && $page == 1) {
@@ -337,7 +337,7 @@ function get_all_contact(string $token, int $page) {
 
 		$fp = fopen($filename,'a',0777);
 		if($page == 1) {
-			fwrite($fp, '{\r\n	\'contacts\': [\r\n');
+			fwrite($fp, "{\r\n	\"contacts\": [\r\n");
 		}
 		for($i = 0; $i < $count_str; $i++) {
 			$id_contact = $response['data']['_embedded']['contacts'][$i]['id'];
@@ -371,16 +371,16 @@ function get_all_contact(string $token, int $page) {
 				'email_contact' => $email_contact,
 				), JSON_UNESCAPED_UNICODE, JSON_FORCE_OBJECT);
 			if($i == $count_str - 1 && $last_page) {
-				fwrite($fp, '		'.$set.'\r\n'); //закрываемся
+				fwrite($fp, "		".$set."\r\n"); //закрываемся
 			} else {
-				fwrite($fp, '		'.$set.',\r\n');
+				fwrite($fp, "		".$set.",\r\n");
 			}
 		}
 		if($count_str == 250) {
 			$page++;
 			get_all_contact($token, $page);
 		} else {
-			fwrite($fp, '	]\r\n}');
+			fwrite($fp, "	]\r\n}");
 			fclose($fp);
 
 			search_contact_in_json($filename, $_GET['email'], $_GET['phone']);

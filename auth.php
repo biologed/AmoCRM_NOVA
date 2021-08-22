@@ -45,7 +45,7 @@ function auth(string $operation, string $token = '') {
 		}
 
 		$fp = fopen('sec/.htaccess','w',0777);
-		fwrite($fp, '<Files *>\r\nDeny from All\r\n</Files>');
+		fwrite($fp, "<Files *>\r\nDeny from All\r\n</Files>");
 		fclose($fp);
 
 		/* записываем конечное время жизни токена */
