@@ -1,17 +1,16 @@
 <?php
 
-include_once('lib.php');
-date_default_timezone_set("Europe/Moscow");
+date_default_timezone_set('Europe/Moscow');
 
-function auth($operation, $token = '') {
-	if($operation = "newtoken") {
+function auth(string $operation, string $token = '') {
+	if($operation = 'newtoken') {
 		$link = 'https://supergird2012.amocrm.ru/oauth2/access_token';
 		$data = [
 			'client_id' => '32207fa9-8984-44d8-84b8-cac1ef5f0b47',
 			'client_secret' => 'loLEfDvPH6yXW3wHW4UxWueh9EdPg1vDhfbNbsFYxPy7KPRrBNWEF3qxP6yRT8pu',
 			'grant_type' => 'authorization_code',
-			'code' => 'def502002a10494be6b546277098dac36015489c7fcef4a838d09210c6561d7379ac2ac0419019e040df5ff9d41da2eb7473f30ebea01cfbf35ebd3acc6a82858e3a06ce55d167488bedd35380a00e49d6371f969265c01345e702457bd78b382122f4d8832ea5da8ce3b8d994af8c953473fdf7ff17280a982a69e78e006d2669378fbf8cd1d3fd717354e6523e001d6afe2f30f37eb92b0dc1edd6f687ef6c0446a4073d03f937aa6ee906e173116c20218034efc57e65199ba1d83e2ba9d5fd3a460db803d951b3d9f9d422c7bf2549ddaa071d74b30deec8be7d5614408ef1e329a660cedb9bf440f12913ec9380cd9931757f9a9f6af1ef86776c6474fffe4aaed3966ee51ee1b2ddb4b5ebc7d6d446d41cdde123fceb26128373e59581b1988b9614645940dd983753af7d40658a8917fb2762416cce87b7e12fb36a6fc57038e01e17fcbe6dfd8ec3fb67963e0aca9df2b3295490457fff132e4d285d38ce457041c605b7aee5e8e8f6036cfd23a24f32b5ed13409c841cda36184fada586b702b28c560baa1c72bd253b3e353b5e4fec6919ba247e7bf390e9e5538ccd856debd2920a2169ffff716994d6614bab6d62ca35dc53b07f189311ee43efa430080487f22dc3fb',
-			'redirect_uri' => 'http://5992-188-187-12-220.ngrok.io/',
+			'code' => 'def5020041b6749965c7ca2195d777c6ee4a3d79dc511997f41385d9623dfa227aba904b229d6b74496ca050543af3dda3654292985bff2c4202735a4dd57a90c9b60b13f399f1c2665690d8913645b302e9210e810c6a932c96b93f34c056d1ae2569068b3e76653de8aeedf11f3b0aabc444d6a468496a40e28cba035e7a59bf386cecd17509c82e2cfadd539a8cda06378e75ce07dd16ebefeddc74f36fac7b775eae9dcf8bcc1c095e16e850a4187ec9f5bf34f937dc5707841a043e4db0b75431edd0fc255e9088d97c085700eb077cc5f2e734148d88d499305e481ed1523e44a23bc1b1fe57e34b66f0bdff9b4222f2e9aab6457d86965c032623f26be5771275fdf3e6113fa1d9b400a321c0cb9011025790cf2693730d3eff287e5a4e4df2dae6f1210987536851b4ec6d0c44a60026f7d3f88be1b2b1d5e376c649f98cf02b76547d6e38b02344d2ef74f7543c73bd107d7a35716f3add0155c6bd976e7f33ce6c982c4ec432131065649e0a412b16206081254d22d7a4b5520513fe7866f373a86126a411029ff17140c91107d61d4fe96c27d3cb4ae3bafee417cefd7b5edb38253818734e33e6c64911f43d2da5de6fb22c322e282595f8f933adf4e7826c2fea40cd29907b93a00961',
+			'redirect_uri' => 'https://7ba4-188-187-12-220.ngrok.io/',
 		];
 	} elseif($operation = 'returntoken') {
 		$link = 'https://supergird2012.amocrm.ru/oauth2/access_token';
@@ -20,10 +19,10 @@ function auth($operation, $token = '') {
 			'client_secret' => 'loLEfDvPH6yXW3wHW4UxWueh9EdPg1vDhfbNbsFYxPy7KPRrBNWEF3qxP6yRT8pu',
 			'grant_type' => 'refresh_token',
 			'refresh_token' => $token,
-			'redirect_uri' => 'http://5992-188-187-12-220.ngrok.io/',
+			'redirect_uri' => 'https://7ba4-188-187-12-220.ngrok.io/',
 		];
 	} else {
-		die("Непредвиденная ошибка");
+		die('Непредвиденная ошибка');
 	}
 
 	$curl = curl_init();
@@ -37,39 +36,46 @@ function auth($operation, $token = '') {
 	curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 1);
 	curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
 	$out = curl_exec($curl);
+	$code = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
 	$response = json_decode($out, true);
-	
-	if($response) {
+
+	if($out && ($code == 200 || $code == 204)) {
+		if(!is_dir('sec')) {
+			mkdir('sec', 0777, true);
+		}
+
+		$fp = fopen('sec/.htaccess','w',0777);
+		fwrite($fp, '<Files *>\r\nDeny from All\r\n</Files>');
+		fclose($fp);
+
 		/* записываем конечное время жизни токена */
-		$response["endTokenTime"] = time() + $response["expires_in"];
-		$responseJSON = json_encode($response);
+		$response['endTokenTime'] = time() + $response['expires_in'];
+		$response = json_encode($response);
 		/* передаём значения наших токенов в файл */
-		$filename = "token.json";
-		$f = fopen($filename,'w');
-		fwrite($f, $responseJSON);
-		fclose($f);
-		$response = json_decode($responseJSON, true);
-
-		return $response;
-	} else {
-		die("Запрос не вернул ожидаемого результата");
+		$fp = fopen('sec/token.json','w',0777);
+		fwrite($fp, $response);
+		fclose($fp);
+		// $response = json_decode($response, true);
+		
+		$result = array(
+			'status' => 'success',
+			'data' => 'Авторизация выполнена успешно'
+		);
+	} elseif ($code < 200 || $code > 204) {
+		$result = array(
+			'status' => 'error',
+			'data' => 'Ошибка №'.$code.' - '.$response['detail'].' - '.$response['hint']
+		);
 	}
+	echo json_encode($result);
 }
 
-function grantNewToken() {
-	auth('newtoken');
-}
-
-function returnNewToken($token) {
-	auth('returntoken', $token);
-}
-
-if(file_exists('token.json')) {
-	$content = json_decode(file_get_contents('token.json'), true);
+if(file_exists('sec/token.json')) {
+	$content = json_decode(file_get_contents('sec/token.json'), true);
 	if($content['endTokenTime'] <= time()) {
-		returnNewToken($content['refresh_token']);
+		auth('returntoken', $content['refresh_token']);
 	}
 } else {
-	grantNewToken();
+	auth('newtoken');
 }
 ?>

@@ -14,10 +14,9 @@
 		$.ajax({
 			url: '/auth.php',
 			method: 'get',
-			dataType: 'html',
-			data: $(this).serialize(),
+			dataType: 'json',
 			success: function(data){
-				$('#message_about_auth').html(data);
+				alert(data['data']);
 			}
 		});
 

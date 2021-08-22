@@ -91,13 +91,13 @@ function get_contact(string $token, string $name) {
 				//ищем телефон и почту в полях
 				if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'])) {
 					for($t = 0; $t < count($response['data']['_embedded']['contacts'][$i]['custom_fields_values']); $t++) {
-						if($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Телефон") {
+						if($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == 'Телефон') {
 							if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
 								$phone_contact = $response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
 							} else {
 								$phone_contact = null;
 							}
-						} else if ($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Email") {
+						} else if ($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == 'Email') {
 							if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
 								$email_contact = $response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
 							} else {
@@ -164,37 +164,37 @@ function create_contact(string $token, string $name, string $phone, string $emai
 	if(!empty($_GET['name']) && !empty($_GET['email']) && !empty($_GET['phone'])) {
 		$set=array(
 			array(
-				"name"=>$name,
-				"first_name"=>$name,
-				"last_name"=>"",
-				"updated_at"=>time(),
-				"custom_fields_values"=>array(
+				'name'=>$name,
+				'first_name'=>$name,
+				'last_name'=>'',
+				'updated_at'=>time(),
+				'custom_fields_values'=>array(
 					array(
-						"field_id"=>633427,
-						"values"=>array(
+						'field_id'=>633427,
+						'values'=>array(
 							array(
-								"value"=>$email,
-								"enum_code"=>"WORK"
+								'value'=>$email,
+								'enum_code'=>'WORK'
 							)
 						)
 					),
 					array(
-						"field_id"=>633425,
-						"values"=>array(
+						'field_id'=>633425,
+						'values'=>array(
 							array(
-								"value"=>$phone,
-								"enum_code"=>"WORK"
+								'value'=>$phone,
+								'enum_code'=>'WORK'
 							)
 						)
 					)
 				),
-				"request_id"=>"create"
+				'request_id'=>'create'
 			)
 		);
 
 		$response = &connect('create_contact', $token, 0, 0, 0, $set, ''); //инициируем запрос в API
 		if($response['status'] == 'success') {
-			$id_contact = $response['data']["_embedded"]["contacts"][0]['id'];
+			$id_contact = $response['data']['_embedded']['contacts'][0]['id'];
 			create_lead($token, $name, $id_contact); //создаем сделку
 		} else if ($response['status'] == 'error') {
 			$result = array(
@@ -230,15 +230,15 @@ function create_contact(string $token, string $name, string $phone, string $emai
 function create_lead(string $token, string $name_lead, int $id_contact) {
 	$set=array(
 		array(
-			"name"=>$name_lead,
-			"price"=>0,
-			"request_id"=>"create_lead"
+			'name'=>$name_lead,
+			'price'=>0,
+			'request_id'=>'create_lead'
 		)
 	);
 	$response = &connect('create_lead', $token, 0, 0, 0, $set, ''); //инициируем запрос в API
 
 	if($response['status'] == 'success') {
-		$id_lead = $response['data']["_embedded"]["leads"][0]['id'];
+		$id_lead = $response['data']['_embedded']['leads'][0]['id'];
 		create_link($token, $id_lead, $id_contact); //создаем связь между сделкой и контактом
 	} else if ($response['status'] == 'error') {
 		$result = array(
@@ -267,10 +267,10 @@ function create_lead(string $token, string $name_lead, int $id_contact) {
 function create_link(string $token, int $id_lead, int $id_contact) {
 	$set=array(
 		array(
-			"to_entity_id"=>$id_contact,
-			"to_entity_type"=>"contacts",
-			"metadata"=>array(
-				"is_main"=>true,
+			'to_entity_id'=>$id_contact,
+			'to_entity_type'=>'contacts',
+			'metadata'=>array(
+				'is_main'=>true,
 			)
 		)
 	);
@@ -316,13 +316,13 @@ function get_all_contact(string $token, int $page) {
 		$last_page = false;
 		$count_str = count($response['data']['_embedded']['contacts']); //количество контактов в ответе
 		// $count_file = count(file($filename)); //количество контактов в файле
-		if(!is_dir("sec")) {
-			mkdir("sec", 0777, true);
+		if(!is_dir('sec')) {
+			mkdir('sec', 0777, true);
 		}
 
-		$filename = "sec/base_contracts.json";
+		$filename = 'sec/base_contracts.json';
 		$fp = fopen('sec/.htaccess','w',0777);
-		fwrite($fp, "<Files *>\r\nDeny from All\r\n</Files>");
+		fwrite($fp, '<Files *>\r\nDeny from All\r\n</Files>');
 		fclose($fp);
 
 		if(file_exists($filename) && $page == 1) {
@@ -337,7 +337,7 @@ function get_all_contact(string $token, int $page) {
 
 		$fp = fopen($filename,'a',0777);
 		if($page == 1) {
-			fwrite($fp, "{\r\n	\"contacts\": [\r\n");
+			fwrite($fp, '{\r\n	\'contacts\': [\r\n');
 		}
 		for($i = 0; $i < $count_str; $i++) {
 			$id_contact = $response['data']['_embedded']['contacts'][$i]['id'];
@@ -346,13 +346,13 @@ function get_all_contact(string $token, int $page) {
 			//ищем телефон и почту в полях
 			if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'])) {
 				for($t = 0; $t < count($response['data']['_embedded']['contacts'][$i]['custom_fields_values']); $t++) {
-					if($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Телефон") {
+					if($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == 'Телефон') {
 						if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
 							$phone_contact = $response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
 						} else {
 							$phone_contact = null;
 						}
-					} else if ($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == "Email") {
+					} else if ($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['field_name'] == 'Email') {
 						if(!empty($response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'])) {
 							$email_contact = $response['data']['_embedded']['contacts'][$i]['custom_fields_values'][$t]['values'][0]['value'];
 						} else {
@@ -371,16 +371,16 @@ function get_all_contact(string $token, int $page) {
 				'email_contact' => $email_contact,
 				), JSON_UNESCAPED_UNICODE, JSON_FORCE_OBJECT);
 			if($i == $count_str - 1 && $last_page) {
-				fwrite($fp, "		".$set."\r\n"); //закрываемся
+				fwrite($fp, '		'.$set.'\r\n'); //закрываемся
 			} else {
-				fwrite($fp, "		".$set.",\r\n");
+				fwrite($fp, '		'.$set.',\r\n');
 			}
 		}
 		if($count_str == 250) {
 			$page++;
 			get_all_contact($token, $page);
 		} else {
-			fwrite($fp, "	]\r\n}");
+			fwrite($fp, '	]\r\n}');
 			fclose($fp);
 
 			search_contact_in_json($filename, $_GET['email'], $_GET['phone']);
@@ -464,21 +464,21 @@ function update_contact(string $token, int $id, string $name, string $phone, str
 	if(!empty($_GET['name']) && !empty($_GET['email']) && !empty($_GET['phone'])) {
 		$set=array(
 			array(
-				"id"=>$id,
-				"first_name"=>$name."1",
-				"last_name"=>"",
-				"custom_fields_values"=>array(
+				'id'=>$id,
+				'first_name'=>$name.'1',
+				'last_name'=>'',
+				'custom_fields_values'=>array(
 					array(
-						"field_id"=>669985,
-						"field_name"=>"pfafasd",
-						"values"=>array(
+						'field_id'=>669985,
+						'field_name'=>'pfafasd',
+						'values'=>array(
 							array(
-								"value"=>"11111111"
+								'value'=>'11111111'
 							)
 						)
 					)
 				),
-				"request_id"=>"update"
+				'request_id'=>'update'
 			)
 		);
 		$response = &connect('update_contact', $token, $id, 0, 0, $set, $name); //инициируем запрос в API
@@ -510,8 +510,8 @@ function update_contact(string $token, int $id, string $name, string $phone, str
 * GET create и update вызываются Ajax запросом
 * @access public
 */
-if(file_exists('token.json')) {
-	$content = json_decode(file_get_contents('token.json'), true);
+if(file_exists('sec/token.json')) {
+	$content = json_decode(file_get_contents('sec/token.json'), true);
 
 	if(!empty($_GET['update'])) {
 		update_contact($content['access_token'], $_GET['id'], $_GET['name'], $_GET['phone'], $_GET['email']);
@@ -525,5 +525,12 @@ if(file_exists('token.json')) {
 			get_contact($content['access_token'], $_GET['name']);
 		}
 	}
+} else {
+	$result = array(
+		'status' => 'error',
+		'data' => 'Ошибка авторизации проверте файл с токеном'
+	);
+	
+	echo json_encode($result);
 }
 ?>
