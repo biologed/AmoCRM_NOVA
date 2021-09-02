@@ -1,4 +1,3 @@
-
 <html>
 	<head>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -18,6 +17,30 @@
 			success: function(data){
 				alert(data['data']);
 			}
+		});
+
+		$("#create-task").click(function() {
+			$.ajax({
+				url: '/handler.php?get_links=get_links',
+				method: 'get',
+				dataType: 'json',
+				success: function(data) {
+					if(data['status'] == 'success') {
+						alert(data['data']);
+						$.ajax({
+							url: '/handler.php?create_tasks=create_tasks',
+							method: 'get',
+							dataType: 'html',
+							data: $(this).serialize(),
+							success: function(data) {
+								console.log(data);
+							}
+						});
+					} else {
+						alert(data['data']);
+					}
+				}
+			});
 		});
 
 		$("#send").click(function() {
@@ -85,7 +108,6 @@
 	});
 	</script>
 
-	<div id="message_about_auth"></div>
 	<table>
 		<tbody id="message">
 			<tr>
@@ -101,6 +123,7 @@
 		Почта<input id="email" type="text" name="email">
 		Телефон<input id="phone" type="text" name="phone">
 		<input id="send" type="button" value="Передать данные">
+		<input id="create-task" type="button" value="Создать задачи">
 	</div>
 
 	</body>

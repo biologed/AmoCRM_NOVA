@@ -4,22 +4,22 @@ date_default_timezone_set('Europe/Moscow');
 
 function auth(string $operation, string $token = '') {
 	if($operation = 'newtoken') {
-		$link = 'https://supergird2012.amocrm.ru/oauth2/access_token';
+		$link = 'https://yurytopgar.amocrm.ru/oauth2/access_token';
 		$data = [
-			'client_id' => '32207fa9-8984-44d8-84b8-cac1ef5f0b47',
-			'client_secret' => 'loLEfDvPH6yXW3wHW4UxWueh9EdPg1vDhfbNbsFYxPy7KPRrBNWEF3qxP6yRT8pu',
+			'client_id' => '1e1173f5-2cd2-45d7-8fe0-36fc9a57482d',
+			'client_secret' => 'sOdoQWOvhiAHDdtWDa4UvRdsUqA7hxbUvoCXdmUtyYz9iiplHTs9YC24a84IYaHX',
 			'grant_type' => 'authorization_code',
-			'code' => 'def5020041b6749965c7ca2195d777c6ee4a3d79dc511997f41385d9623dfa227aba904b229d6b74496ca050543af3dda3654292985bff2c4202735a4dd57a90c9b60b13f399f1c2665690d8913645b302e9210e810c6a932c96b93f34c056d1ae2569068b3e76653de8aeedf11f3b0aabc444d6a468496a40e28cba035e7a59bf386cecd17509c82e2cfadd539a8cda06378e75ce07dd16ebefeddc74f36fac7b775eae9dcf8bcc1c095e16e850a4187ec9f5bf34f937dc5707841a043e4db0b75431edd0fc255e9088d97c085700eb077cc5f2e734148d88d499305e481ed1523e44a23bc1b1fe57e34b66f0bdff9b4222f2e9aab6457d86965c032623f26be5771275fdf3e6113fa1d9b400a321c0cb9011025790cf2693730d3eff287e5a4e4df2dae6f1210987536851b4ec6d0c44a60026f7d3f88be1b2b1d5e376c649f98cf02b76547d6e38b02344d2ef74f7543c73bd107d7a35716f3add0155c6bd976e7f33ce6c982c4ec432131065649e0a412b16206081254d22d7a4b5520513fe7866f373a86126a411029ff17140c91107d61d4fe96c27d3cb4ae3bafee417cefd7b5edb38253818734e33e6c64911f43d2da5de6fb22c322e282595f8f933adf4e7826c2fea40cd29907b93a00961',
-			'redirect_uri' => 'https://7ba4-188-187-12-220.ngrok.io/',
+			'code' => 'def5020082e7ab3adf3fe59ade25e699c7924e47032ed8aa462e3c7cf232cb9d221b01aa612b8b5591385e29ec8073c9fe0c0069a7d11e92f475192003fe38c378b87fc7dc17ac47d759ada75327a4532273c7a7b64a7c59495b04e731b30eec70f62d25e695fa743c48cf5f393e3608f1da13a59c203a1567e390d36c0f0b39bcb0f72721eaa771d03af6f8ce705303ee60d11fb5be80fca75829af5bb727a51610e3e99c72480a0774672d928479d23b86181ff7b4537c45223764c24234743d7d02a53dddbc22fc47543d62fa0689d760aa5528bcbeaed82b8609f686626864951603c2d365019097cc0685d9209a68a9db3394e85222c449b6f97157f8888ce8bbc3666d64a429feb3810df897d03762a6d1295d78e135f4539e61600a0bca3e257b635b0f54c6d667903d89d042d7a3a037c926090bf953201c1a4f74f58e12e7a8e8a32228e658322971cb922208c7f62f1854929c5908696548f1949afdfb8bd032b1e76f8a8f01594d31ff38fd1f99257544400abc84939ec0b849702ddedd8f11201dd2381494eb849fb44c557c9326ac457e16f3e156d348324e784a60651b4d16992b8127da75fc5e84cad2cfe9ab1d8fa10421bd33d75f08978b7444da0378f7c377c0ce455d900fa6e5',
+			'redirect_uri' => 'https://2097-188-187-12-220.ngrok.io/',
 		];
 	} elseif($operation = 'returntoken') {
-		$link = 'https://supergird2012.amocrm.ru/oauth2/access_token';
+		$link = 'https://yurytopgar.amocrm.ru/oauth2/access_token';
 		$data = [
-			'client_id' => '32207fa9-8984-44d8-84b8-cac1ef5f0b47',
-			'client_secret' => 'loLEfDvPH6yXW3wHW4UxWueh9EdPg1vDhfbNbsFYxPy7KPRrBNWEF3qxP6yRT8pu',
+			'client_id' => '1e1173f5-2cd2-45d7-8fe0-36fc9a57482d',
+			'client_secret' => 'sOdoQWOvhiAHDdtWDa4UvRdsUqA7hxbUvoCXdmUtyYz9iiplHTs9YC24a84IYaHX',
 			'grant_type' => 'refresh_token',
 			'refresh_token' => $token,
-			'redirect_uri' => 'https://7ba4-188-187-12-220.ngrok.io/',
+			'redirect_uri' => 'https://2097-188-187-12-220.ngrok.io/',
 		];
 	} else {
 		die('Непредвиденная ошибка');
@@ -64,7 +64,7 @@ function auth(string $operation, string $token = '') {
 	} elseif ($code < 200 || $code > 204) {
 		$result = array(
 			'status' => 'error',
-			'data' => 'Ошибка №'.$code.' - '.$response['detail'].' - '.$response['hint']
+			'data' => 'Ошибка №'.$code,
 		);
 	}
 	echo json_encode($result);

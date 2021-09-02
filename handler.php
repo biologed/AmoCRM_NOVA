@@ -23,25 +23,31 @@ function &connect(string $operation, string $token, int $id, int $id_lead, int $
 	curl_setopt($curl, CURLOPT_USERAGENT,'amoCRM-oAuth-client/1.0');
 
 	if($operation == 'get_all_contact') {  //запрос на получение всех контактов
-		$link = 'https://supergird2012.amocrm.ru/api/v4/contacts?page='.$page.'&limit=250';
+		$link = 'https://yurytopgar.amocrm.ru/api/v4/contacts?page='.$page.'&limit=250';
 	} elseif($operation == 'update_contact') { //запрос на обновление контакта
-		$link = 'https://supergird2012.amocrm.ru/api/v4/contacts/'.$id;
+		$link = 'https://yurytopgar.amocrm.ru/api/v4/contacts/'.$id;
 		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'PATCH');
 		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
 	} elseif($operation == 'create_contact') { //запрос на создание контакта
-		$link = 'https://supergird2012.amocrm.ru/api/v4/contacts';
+		$link = 'https://yurytopgar.amocrm.ru/api/v4/contacts';
 		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'POST');
 		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
 	} elseif($operation == 'create_lead') { //запрос на создание сделки
-		$link = 'https://supergird2012.amocrm.ru/api/v4/leads';
+		$link = 'https://yurytopgar.amocrm.ru/api/v4/leads';
 		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'POST');
 		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
 	} elseif($operation == 'create_link') { //запрос на создание связи
-		$link = 'https://supergird2012.amocrm.ru/api/v4/leads/'.$id_lead.'/link';
+		$link = 'https://yurytopgar.amocrm.ru/api/v4/leads/'.$id_lead.'/link';
 		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'POST');
 		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
 	} elseif($operation == 'get_contact') { //запрос на поиск контакта по имени
-		$link = 'https://supergird2012.amocrm.ru/api/v4/contacts?filter[name]='.$name.'';
+		$link = 'https://yurytopgar.amocrm.ru/api/v4/contacts?filter[name]='.$name.'';
+	} elseif($operation == 'get_link') { //запрос на поиск ссылок в контакте
+		$link = 'https://yurytopgar.amocrm.ru/api/v4/contacts/'.$id.'/links';
+	} elseif($operation == 'create_tasks') { //запрос на создание задачи
+		$link = 'https://yurytopgar.amocrm.ru/api/v4/tasks';
+		curl_setopt($curl, CURLOPT_CUSTOMREQUEST,'POST');
+		curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($set));
 	}
 
 	curl_setopt($curl, CURLOPT_URL, $link);
@@ -62,7 +68,7 @@ function &connect(string $operation, string $token, int $id, int $id_lead, int $
 	} elseif ($code < 200 || $code > 204) {
 		$response = array(
 			'status' => 'error',
-			'data' => 'Ошибка №'.$code
+			'data' => json_decode($out, true)
 		);
 	}
 
@@ -297,6 +303,108 @@ function create_link(string $token, int $id_lead, int $id_contact) {
 }
 
 /**
+* Формируем файл задачи для контактов без задачь
+* для создания связи между ними
+* @param string $token токен API
+* @param int $id_lead универсальный номер сделки
+* @param int $id_contact универсальный номер контакта
+* @access private
+* @return array
+*/
+function search_links(string $token) {
+	$content = array();
+	$filename = 'sec/base_contracts.json';
+
+	if(!file_exists($filename)) {
+		get_all_contact($token, 1);
+	}
+	
+	if(!file_exists('sec/base_contracts_links.json')) {
+		$content = json_decode(file_get_contents($filename), true);
+
+		for($i = 0; $i < count($content['contacts']); $i++) {
+			$response = &connect('get_link', $token, $content['contacts'][$i]['id_contact'], 0, 0, [], '');
+			if($response['data']['_embedded']['links']) {
+				$content['contacts'][$i]['link'] = $response['data']['_embedded']['links'][0];
+			} else {
+				$content['contacts'][$i]['link'] = 0;
+			}
+		}
+		
+		$json = json_encode($content);
+		$file = fopen('sec/base_contracts_links.json','w',0777);
+		fwrite($file, $json);
+		fclose($file);
+	
+		if($response['status'] == 'success') {
+			$result = array(
+				'status' => 'success',
+				'data' => 'Ссылки получены'
+			);
+		} else if ($response['status'] == 'error') {
+			$result = array(
+				'status' => 'error',
+				'data' => $response['data']
+			);
+		} else {
+			$result = array(
+				'status' => 'error',
+				'data' => 'Ошибка! Ссылки не получены'
+			);
+		}
+	} else {
+		$result = array(
+			'status' => 'success',
+			'data' => 'Ссылки уже были получены, для получения новых ссылок удалите файл base_contracts_links.json'
+		);
+	}
+	echo json_encode($result);
+}
+
+function create_tasks(string $token) {
+	$content = array();
+	$filename = 'sec/base_contracts_links.json';
+	$content = json_decode(file_get_contents($filename), true);
+
+	$content = array_chunk($content['contacts'], 250);
+	// var_dump($content[0]);
+	for($t = 0; $t < count($content); $t++) {
+		for($i = 0; $i < count($content[$t]) ; $i++) {
+			if($content[$t][$i]['link'] == 0) {
+				$set[$i] = array(
+						'task_type_id'=>1,
+						'text'=>'Контакт без сделок',
+						'complete_till'=>time()+3600,
+						'entity_id'=>$content[$t][$i]['id_contact'],
+						'entity_type' => 'contacts'
+				);
+			}
+		}
+		$response = &connect('create_tasks', $token, 0, 0, 0, $set, '');
+		unset($set);
+	}
+	
+	if($response['status'] == 'success') {
+		$result = array(
+			'status' => 'success',
+			'data' => 'Задачи успешно созданы'
+		);
+	} else if ($response['status'] == 'error') {
+		$result = array(
+			'status' => 'error',
+			'data' => $response['data']
+		);
+	} else {
+		$result = array(
+			'status' => 'error',
+			'data' => 'Ошибка! Задачи не созданы'
+		);
+	}
+	
+	echo json_encode($response);
+}
+
+/**
 * функция работы с файлом base_contracts.json
 * Функция исследует файл base_contracts в котором хранит все контакты AmoCRM и БД AmoCRM, 
 * из-за API невозможно выполнить фильтр на стороне Амо по их системным полям Телефона и Почты.
@@ -329,7 +437,7 @@ function get_all_contact(string $token, int $page) {
 			$new_filename = str_replace('.json', '', $filename).'_backup.json';
 			copy($filename, $new_filename);
 			unlink($filename);
-		}	
+		}
 
 		if($count_str < 250) {
 			$last_page = true;
@@ -339,6 +447,7 @@ function get_all_contact(string $token, int $page) {
 		if($page == 1) {
 			fwrite($fp, "{\r\n	\"contacts\": [\r\n");
 		}
+
 		for($i = 0; $i < $count_str; $i++) {
 			$id_contact = $response['data']['_embedded']['contacts'][$i]['id'];
 			$name_contact = $response['data']['_embedded']['contacts'][$i]['name'];
@@ -376,6 +485,7 @@ function get_all_contact(string $token, int $page) {
 				fwrite($fp, "		".$set.",\r\n");
 			}
 		}
+		
 		if($count_str == 250) {
 			$page++;
 			get_all_contact($token, $page);
@@ -518,7 +628,14 @@ if(file_exists('sec/token.json')) {
 	} 
 	else if(!empty($_GET['create'])) {
 		create_contact($content['access_token'], $_GET['name'], $_GET['phone'], $_GET['email']);
-	} else {
+	} 
+	else if(!empty($_GET['get_links'])) {
+		search_links($content['access_token']);
+	}
+	else if(!empty($_GET['create_tasks'])) {
+		create_tasks($content['access_token']);
+	}
+	else {
 		if(empty($_GET['name'])) {
 			get_all_contact($content['access_token'], 1);
 		} else {
